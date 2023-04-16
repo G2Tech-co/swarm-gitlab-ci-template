@@ -1,0 +1,30 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  services:
+    - docker:23-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_PIPELINE_ID" -f ./Dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_PIPELINE_ID"
+  after_script:
+    - docker logout $CI_REGISTRY
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker stack deploy --compose-file docker-compose.yml --resolve-image=always --with-registry-auth --prune Nginx
+  after_script:
+    - docker logout $CI_REGISTRY
+  tags:
+    - nginx-deploy
+  only:
+    - main
